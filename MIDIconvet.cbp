@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="MIDIconvert" />
+		<Option pch_mode="2" />
+		<Option compiler="minggw64_compiler" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/MIDIconvert" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="minggw64_compiler" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/MIDIconvert" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="minggw64_compiler" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+		</Compiler>
+		<Unit filename="BpmLinkedList.cpp" />
+		<Unit filename="BpmLinkedList.h" />
+		<Unit filename="Complex.h" />
+		<Unit filename="Fourier.cpp" />
+		<Unit filename="Fourier.h" />
+		<Unit filename="LinkedList.cpp" />
+		<Unit filename="LinkedList.h" />
+		<Unit filename="dataBase.h" />
+		<Unit filename="main.cpp" />
+		<Unit filename="midi.cpp" />
+		<Unit filename="midi.h" />
+		<Unit filename="playControl.cpp" />
+		<Unit filename="playControl.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
