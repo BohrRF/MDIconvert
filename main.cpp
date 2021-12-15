@@ -62,7 +62,7 @@ int main()
                 }
 
                 con.readOnPlayList(ay);
-                if((ay[128] = (unsigned char)con.beatRecieved) == 0) con.beatRecieved = false;
+                if((by[128] = (unsigned char)con.beatRecieved) == 1) con.beatRecieved = false;
                 if(con.curBeatPos != beat_cnt_temp)
                 {
                     c = '_';//196 '-'223
