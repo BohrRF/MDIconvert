@@ -11,6 +11,7 @@ public:
     unsigned int number = 0;
     unsigned int tickSpan = 0;
     bool isOffed = false;
+
     void operator = (const note &rval)
     {
         this->channel = rval.channel;
@@ -22,20 +23,21 @@ public:
     {
         return (this->channel == rval.channel && this->number == rval.number);
     }
-    note() {}
+
     note(const note& n) : channel(n.channel), velocity(n.velocity), number(n.number), tickSpan(n.tickSpan), isOffed(n.isOffed) {}
+    note() {}
 };
 
 class tickNode
 {
 public:
+    unsigned int tickOffset = 0;
+
     std::vector<note> notes;
     std::vector<std::pair<unsigned, unsigned>> channelSound;
     std::vector<std::pair<unsigned, std::pair<unsigned, unsigned>>> channelBank;
     std::vector<std::vector<unsigned char>> sysMessage;
     std::vector<std::vector<unsigned>> specialEvents;
-
-    unsigned int tickOffset = 0;
 };
 
 class beatSection
@@ -54,7 +56,6 @@ public:
         timeSigniture_num = num;
         timeSigniture_den = den;
     }
-    beatSection(){}
 };
 
 class musicData

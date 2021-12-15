@@ -114,6 +114,13 @@ void control::setplayState(const int64_t &curTimeStamp, const int& mode)
     playState = mode;
 }
 
+void control::start(const int64_t &curTimeStamp)
+{
+    beat_ptr = music.beatSet.begin();
+    node_ptr = beat_ptr->tickSet.begin();
+    setplayState(curTimeStamp, 2);
+}
+
 void control::resume(const int64_t &curTimeStamp)
 {
     int64_t pauseTime =  curTimeStamp - pauseTimeStamp;
@@ -123,42 +130,38 @@ void control::resume(const int64_t &curTimeStamp)
     playState = 2;
 }
 
-void control::restartMusic(const int64_t &curTimeStamp)
+void control::restart(const int64_t &curTimeStamp)
 {
-    playSound.stopMusic();
+    midi.stopMusic();
     onPlayList.clear();
     beat_ptr = music.beatSet.begin();
     node_ptr = beat_ptr->tickSet.begin();
     setplayState(curTimeStamp, 2);
 }
 
-void control::resetBeat()
+void control::resetBeatPos()
 {
-    playSound.stopMusic();
+    midi.stopMusic();
     onPlayList.clear();
     node_ptr = beat_ptr->tickSet.begin();
     curBeatPos = beat_ptr - music.beatSet.begin() + 1;
     playState = 0;
 }
 
-void control::resetBpmList()
-{
-    bpmList.clear();
-}
 
 void control::resetAll()
 {
-    playSound.stopMusic();
+    midi.reset();
     music.beatSet.clear();
     onPlayList.clear();
-    resetBeat();
-    resetBpmList();
+    bpmList.clear();
+    resetBeatPos();
 }
 
 void control::pause(const int64_t &curTimeStamp)
 {
     pauseTimeStamp = curTimeStamp;
-    playSound.stopMusic();
+    midi.stopMusic();
     onPlayList.clear();
     playState = 3;
 }
@@ -177,7 +180,7 @@ void control::pause(const int64_t &curTimeStamp)
 //    }
 //}
 
-void control::readOnPlayList(unsigned char ary[]) const
+void control::getOnPlayList(unsigned char ary[]) const
 {
     memset(ary, 0, 128 * sizeof(char));
     for(const auto &a : onPlayList)
@@ -186,7 +189,7 @@ void control::readOnPlayList(unsigned char ary[]) const
     }
 }
 
-void control::outParameter() const
+void control::printParameter() const
 {
     printf("\nBeat# %5d / %-5lld err:%+4.0fms /%4.0fms    BPM: %3.1f= %4.1f%+5.1f    offset: %+3.0fms",
            curBeatPos, music.beatSet.size() + 1, 1000 * dif , 60*1000 * gearFactor / handBpm, curBpm, handBpm, speedBias, timeOffset);
@@ -350,16 +353,16 @@ int control::refresh(const int64_t& TimeStamp, const Fourier& fft)
             if_next = 2;
             for(const auto &a : node_ptr->sysMessage)
             {
-                playSound.sysMsg(a);
+                midi.sysMsg(a);
             }
             for(const auto &a : node_ptr->channelSound)
             {
                 auto res = std::find_if(node_ptr->channelBank.begin(), node_ptr->channelBank.end(), [&](const std::pair<unsigned, std::pair<unsigned, unsigned>> &b){return b.first == a.first;});
                 if(res != node_ptr->channelBank.end())
                 {
-                    playSound.programChange(a.first, res->second);
+                    midi.programChange(a.first, res->second);
                 }
-                playSound.programChange(a.first, a.second);
+                midi.programChange(a.first, a.second);
             }
             for (auto& n : node_ptr->notes)//play
             {
@@ -368,20 +371,20 @@ int control::refresh(const int64_t& TimeStamp, const Fourier& fft)
                 auto res = std::find_if(onPlayList.begin(), onPlayList.end(), [&](const onPlayNote &a){return a.onNote == n;});
                 if(res != onPlayList.end())
                 {
-                    playSound.noteOff(res->onNote.number, res->onNote.channel);
+                    midi.noteOff(res->onNote.number, res->onNote.channel);
                     onPlayList.erase(res);
                 }
-                playSound.noteOn(n.number, n.velocity * curVelocityFactor, n.channel);
+                midi.noteOn(n.number, n.velocity * curVelocityFactor, n.channel);
                 onPlayNote noteTemp(n, curNodeTimeStamp + n.tickSpan * usPerTick * curSpanFactor);
                 //cout << "time stamp" << curTimeStamp << " span" << n.tickSpan * nsPerTick * curSpanFactor << endl;
 
                 onPlayList.emplace_back(noteTemp);
                 //isListChange = true;
             }
-//            for(const auto &e : node_ptr->specialEvents)
-//            {
-//                playSound.specialEvent(e);
-//            }
+            for(const auto &e : node_ptr->specialEvents)
+            {
+                midi.specialEvent(e);
+            }
             offSetTemp = node_ptr->tickOffset;
             ++node_ptr;
             // node_ptr has already been moved to the next during the calculation of the condition
@@ -439,7 +442,7 @@ int control::refresh(const int64_t& TimeStamp, const Fourier& fft)
         if (it->endTimeStamp <= TimeStamp)
         {
             //stop music
-            playSound.noteOff(it->onNote.number, it->onNote.channel);
+            midi.noteOff(it->onNote.number, it->onNote.channel);
             it = onPlayList.erase(it);
 
             //isListChange = true;
@@ -617,7 +620,7 @@ int control::readMIDI(std::string FILENAME)
     int dumperRemain_count[16][128] = {0};
     std::vector<std::pair<unsigned, unsigned>> sound_temp;
     std::vector<std::pair<unsigned, std::pair<unsigned, unsigned>>> bank_temp;
-//    std::vector<unsigned> special_temp;
+    std::vector<unsigned> special_temp;
 
     for(i = 0; i < tracks; i++)// トラック数だけ繰返し
     {
@@ -1111,36 +1114,36 @@ int control::readMIDI(std::string FILENAME)
                     //printf(")=%d", (unsigned char)track_chunks[i].data[j]);
 
 
-//                    auto it = beat_it->tickSet.begin();
-//                    special_temp.clear();
-//                    special_temp.push_back(0xb0 + (status & 0x0f));
-//                    special_temp.push_back(c);
-//                    special_temp.push_back((unsigned char)track_chunks[i].data[j]);
-//
-//                    while(it != beat_it->tickSet.end())
-//                    {
-//                        if(it->tickOffset == curOffset)
-//                        {
-//                            it->specialEvents.push_back(special_temp);
-//                            break;
-//                        }
-//                        else if(it->tickOffset > curOffset) // if add || it+1 == beat_it->tickSet.end() in condition will increase operating time
-//                        {
-//                            specials_temp.specialEvents.clear();
-//                            specials_temp.specialEvents.push_back(special_temp);
-//                            specials_temp.tickOffset = curOffset;
-//                            it = beat_it->tickSet.insert(it, specials_temp);
-//                            break;
-//                        }
-//                        it++;
-//                    }
-//                    if(it == beat_it->tickSet.end())
-//                    {
-//                        specials_temp.specialEvents.clear();
-//                        specials_temp.specialEvents.push_back(special_temp);
-//                        specials_temp.tickOffset = curOffset;
-//                        it = beat_it->tickSet.insert(it, specials_temp);
-//                    }
+                    auto it = beat_it->tickSet.begin();
+                    special_temp.clear();
+                    special_temp.push_back(0xb0 + (status & 0x0f));
+                    special_temp.push_back(c);
+                    special_temp.push_back((unsigned char)track_chunks[i].data[j]);
+
+                    while(it != beat_it->tickSet.end())
+                    {
+                        if(it->tickOffset == curOffset)
+                        {
+                            it->specialEvents.push_back(special_temp);
+                            break;
+                        }
+                        else if(it->tickOffset > curOffset) // if add || it+1 == beat_it->tickSet.end() in condition will increase operating time
+                        {
+                            specials_temp.specialEvents.clear();
+                            specials_temp.specialEvents.push_back(special_temp);
+                            specials_temp.tickOffset = curOffset;
+                            it = beat_it->tickSet.insert(it, specials_temp);
+                            break;
+                        }
+                        it++;
+                    }
+                    if(it == beat_it->tickSet.end())
+                    {
+                        specials_temp.specialEvents.clear();
+                        specials_temp.specialEvents.push_back(special_temp);
+                        specials_temp.tickOffset = curOffset;
+                        it = beat_it->tickSet.insert(it, specials_temp);
+                    }
                 }
                 else if(120 <= c && c <= 127)// モード・メッセージ
                 {
@@ -1263,36 +1266,36 @@ int control::readMIDI(std::string FILENAME)
                 j++;
                 //printf(", MSB:%d)", (unsigned char)track_chunks[i].data[j]);
 
-//                special_temp.clear();
-//                special_temp.push_back(0xe0 + (status & 0x0f));
-//                special_temp.push_back((unsigned char)track_chunks[i].data[j - 1]);
-//                special_temp.push_back((unsigned char)track_chunks[i].data[j]);
-//
-//                auto it = beat_it->tickSet.begin();
-//                while(it != beat_it->tickSet.end())
-//                {
-//                    if(it->tickOffset == curOffset)
-//                    {
-//                        it->specialEvents.push_back(special_temp);
-//                        break;
-//                    }
-//                    else if(it->tickOffset > curOffset) // if add || it+1 == beat_it->tickSet.end() in condition will increase operating time
-//                    {
-//                        specials_temp.specialEvents.clear();
-//                        specials_temp.specialEvents.push_back(special_temp);
-//                        specials_temp.tickOffset = curOffset;
-//                        it = beat_it->tickSet.insert(it, specials_temp);
-//                        break;
-//                    }
-//                    it++;
-//                }
-//                if(it == beat_it->tickSet.end())
-//                {
-//                    specials_temp.specialEvents.clear();
-//                    specials_temp.specialEvents.push_back(special_temp);
-//                    specials_temp.tickOffset = curOffset;
-//                    it = beat_it->tickSet.insert(it, specials_temp);
-//                }
+                special_temp.clear();
+                special_temp.push_back(0xe0 + (status & 0x0f));
+                special_temp.push_back((unsigned char)track_chunks[i].data[j - 1]);
+                special_temp.push_back((unsigned char)track_chunks[i].data[j]);
+
+                auto it = beat_it->tickSet.begin();
+                while(it != beat_it->tickSet.end())
+                {
+                    if(it->tickOffset == curOffset)
+                    {
+                        it->specialEvents.push_back(special_temp);
+                        break;
+                    }
+                    else if(it->tickOffset > curOffset) // if add || it+1 == beat_it->tickSet.end() in condition will increase operating time
+                    {
+                        specials_temp.specialEvents.clear();
+                        specials_temp.specialEvents.push_back(special_temp);
+                        specials_temp.tickOffset = curOffset;
+                        it = beat_it->tickSet.insert(it, specials_temp);
+                        break;
+                    }
+                    it++;
+                }
+                if(it == beat_it->tickSet.end())
+                {
+                    specials_temp.specialEvents.clear();
+                    specials_temp.specialEvents.push_back(special_temp);
+                    specials_temp.tickOffset = curOffset;
+                    it = beat_it->tickSet.insert(it, specials_temp);
+                }
 
             }
             else if((status & 0xf0) == 0xf0)// 【システム・メッセージ】
@@ -1320,7 +1323,6 @@ int control::readMIDI(std::string FILENAME)
                         }
                         //playSound.sysMsg(data);
 
-
                         while(it != beat_it->tickSet.end())
                         {
                             if(it->tickOffset == curOffset)
@@ -1347,12 +1349,9 @@ int control::readMIDI(std::string FILENAME)
                             it = beat_it->tickSet.insert(it, specials_temp);
                             specials_temp.sysMessage.clear();
                         }
-
-
-
                         j--;   // 行き過ぎた分をデクリメント
-
                         break;
+
                     case 0x01:   // MIDIタイムコード
                         //printf("MIDI Time Code : ");
                         j++;
@@ -1585,7 +1584,7 @@ int control::readMIDI(std::string FILENAME)
                                 cnt <<= 8;   // 8bit左シフト
                                 cnt = cnt | (unsigned char)track_chunks[i].data[j];
                                 //printf("%d", cnt);
-                                curBpm = 60*1e6 / cnt;
+                                curBpm = (curBpm == 120 ? 60*1e6 / cnt : curBpm);
                                 break;
                             case 0x54:   // SMPTEオフセット[5byte]
                                 //printf("SMPTE_Offset=");
@@ -1717,19 +1716,7 @@ int control::readMIDI(std::string FILENAME)
                 }
             }
         }
-
     }
-
-
-    for(i = 0; i < 16; i++)
-    {
-        playSound.programChange(i, std::make_pair(0, 0));
-        playSound.programChange(i, 0);
-    }
-
-    beat_ptr = music.beatSet.begin();
-    node_ptr = beat_ptr->tickSet.begin();
-
 
     // track_chunks,track_chunks[i].dataはcalloc()で領域確保しているので解放し忘れないように！
     for(i = 0; i < tracks; i++)

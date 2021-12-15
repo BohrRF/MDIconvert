@@ -18,6 +18,7 @@ int main()
     HANDLE hOut;
     hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     system("chcp 437");
+    system("cls");
 
     control con;
     con.gearFactor = 1;
@@ -37,7 +38,6 @@ int main()
 
     while(1)
     {
-        system("cls");
         cout << "Midi File name: ";
         std::getline(cin, name);
         con.readMIDI(name);
@@ -46,7 +46,7 @@ int main()
 
         auto t = high_resolution_clock::now();
         auto temp = t;
-        con.setplayState(duration_cast<microseconds>(t.time_since_epoch()).count(), 2);
+        con.start(duration_cast<microseconds>(t.time_since_epoch()).count());
         while (!(GetAsyncKeyState(VK_ESCAPE) & 0x8000))
         {
             t = high_resolution_clock::now();
@@ -61,7 +61,7 @@ int main()
 //                     con.refresh(duration_cast<microseconds>(t.time_since_epoch()).count(), fft);
                 }
 
-                con.readOnPlayList(ay);
+                con.getOnPlayList(ay);
                 if((by[128] = (unsigned char)con.beatRecieved) == 1) con.beatRecieved = false;
                 if(con.curBeatPos != beat_cnt_temp)
                 {
@@ -140,7 +140,7 @@ int main()
                     }
                 }
                 SetConsoleTextAttribute(hOut, 15);
-                con.outParameter();
+                con.printParameter();
                 //printf("\x1b[0m");
                 p = by;
                 by = ay;
@@ -150,8 +150,6 @@ int main()
                 temp = t;
             }
 
-
-    //
             if(GetAsyncKeyState(VK_UP) & 0x8000)
             {
                 if(!keepU)
@@ -164,6 +162,7 @@ int main()
             {
                 keepU = false;
             }
+
             if(GetAsyncKeyState(VK_DOWN) & 0x8000)
             {
                 if(!keepD)
@@ -237,6 +236,7 @@ int main()
         con.resetAll();
         memset(arytemp, 0, 128*sizeof(unsigned char));
         memset(ary, 0, 128*sizeof(unsigned char));
+        system("cls");
     }
     return 0;
 }

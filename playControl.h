@@ -24,30 +24,37 @@ public:
 
 class control
 {
+    midiOut midi;
+    std::list<onPlayNote> onPlayList;
+
     musicData music;
     std::vector<tickNode>::iterator node_ptr;
     std::vector<beatSection>::iterator beat_ptr;
 
-    std::list<onPlayNote> onPlayList;
+    BpmList bpmList;
 
+    int64_t curNodeTimeStamp = 0;
+    int64_t lastBeatTimeStamp = 0;
+    int64_t nextBeatTimeStamp = 0;
+    int64_t pauseTimeStamp = 0;
+
+    void setplayState(const int64_t& curTimeStamp, const int& mode);
+    void resetBeatPos();
+
+    void initial_music();
     unsigned int timetrans(const unsigned int& len);
     void write_beat(beatSection &beat, const std::vector<int> &notes);
-
-    simpleSound playSound;
-
-    BpmList bpmList;
 
 public:
     bool autoplayMode = true;
     bool musicLoop = true;
-    bool beatRecieved = false;
     bool speedFix = false;
     unsigned int gearFactor = 1;
-
-    unsigned char playState = 0;
     double timeOffset = 0;
 
     int curBeatPos = 1;
+    unsigned char playState = 0;
+    bool beatRecieved = false;
     double handBpm = 0;
     double curAccel = 1;
     double curBpm = 120;
@@ -56,24 +63,16 @@ public:
     double dif = 0;
     double speedBias = 0;
 
-    int64_t curNodeTimeStamp = 0;
-    int64_t lastBeatTimeStamp = 0;
-    int64_t nextBeatTimeStamp = 0;
-    int64_t pauseTimeStamp = 0;
-
-    void initial_music();
     int readMIDI(std::string FILENAME);
 
     void printMusic() const;
-    void outParameter() const;
-    void readOnPlayList(unsigned char ary[]) const;
+    void printParameter() const;
+    void getOnPlayList(unsigned char ary[]) const;
 
+    void start(const int64_t &curTimeStamp);
     void pause(const int64_t &curTimeStamp);
     void resume(const int64_t &curTimeStamp);
-    void restartMusic(const int64_t &curTimeStamp);
-    void setplayState(const int64_t& curTimeStamp, const int& mode);
-    void resetBeat();
-    void resetBpmList();
+    void restart(const int64_t &curTimeStamp);
     void resetAll();
 
     void onBeat(const int64_t& TimeStamp, const double& hand_amp, const double& hand_accel, const Fourier& fft);
