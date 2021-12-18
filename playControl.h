@@ -11,7 +11,7 @@
 
 
 const int BPM_LEN = 12;
-const double LOW_HAND_AMP = 10;
+const double LOW_HAND_AMP = 0.1;
 
 class onPlayNote
 {
@@ -30,6 +30,7 @@ class control
     musicData music;
     std::vector<tickNode>::iterator node_ptr;
     std::vector<beatSection>::iterator beat_ptr;
+    std::list<onPlayNote>::iterator onPlay_ptr = onPlayList.begin();
 
     BpmList bpmList;
 
@@ -50,7 +51,7 @@ public:
     bool musicLoop = true;
     bool speedFix = false;
     unsigned int gearFactor = 1;
-    double timeOffset = 0;
+    double timeOffset = -30;
 
     int curBeatPos = 1;
     unsigned char playState = 0;

@@ -53,6 +53,18 @@ int Clist::readXY(std::pair<double, double> data_ary[], size_t n) const
     return n;
 }
 
+int Clist::readXYAfter(std::vector<std::pair<int64_t, Cpos>> &data_ary, const int64_t &tm) const
+{
+    int i = 0;
+    auto temp_ptr = last;
+
+    // n_count-1 here because the speed in the first position is not usable
+    for (i = n_count - 1; i > 0 && temp_ptr->data.timestamp >= tm; i--, temp_ptr = temp_ptr->before)
+        data_ary.push_back(std::make_pair(temp_ptr->data.timestamp, temp_ptr->data.position));
+
+    return data_ary.size();
+}
+
 
 int Clist::readSpeed(std::vector<std::pair<int64_t, Cpos>>& data_ary) const
 {

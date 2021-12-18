@@ -1,4 +1,5 @@
-#include"midi.h"
+#include "midi.h"
+#include <mmeapi.h>
 
 void midiOut::noteOn(const unsigned &iNote, const unsigned &iVelocity, const unsigned &iChannel)
 {
@@ -37,7 +38,7 @@ void midiOut::specialEvent(const vector<unsigned> &events)
 void midiOut::sysMsg(vector<BYTE> data)
 {
     MIDIHDR pMidiHdr={0};
-    BYTE msg[data.size() + 1];
+    BYTE* msg = new BYTE[data.size() + 1];
     msg[0] = 0xF0;
     int i = 1;
     for(auto a : data) msg[i++] = a;
@@ -92,9 +93,11 @@ midiOut::midiOut()
     UINT id;
     MIDIOUTCAPS device;
     LPMIDIOUTCAPS p = &device;
+    printMidiDevices();
+   // cin >> id; getchar();
     MMRESULT mmres = midiOutOpen(&ghMidiOut, 0, 0, 0, CALLBACK_NULL);
     if (mmres != MMSYSERR_NOERROR)
-        fprintf(stderr, "MIDIÇ™óòópÇ≈Ç´Ç‹ÇπÇÒÅB\n");
+        fprintf(stderr, "MIDI not avaliable.\n");
     midiOutGetID(ghMidiOut, &id);
     midiOutGetDevCaps(id, p, sizeof(MIDIOUTCAPS));
     cout << "Current MIDI output device: [" << id << "] " << p->szPname << '\n' << endl;

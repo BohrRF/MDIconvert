@@ -40,6 +40,16 @@ public:
         return temp;
     }
 
+    const bool operator > (const Cpos& rval) const
+    {
+        return (x * x + y * y) > (rval.x * rval.x + rval.y * rval.y);
+    }
+
+    const bool operator < (const Cpos& rval) const
+    {
+        return (x * x + y * y) < (rval.x * rval.x + rval.y * rval.y);
+    }
+
     const Cpos operator - (const Cpos& rval) const
     {
         Cpos temp;
@@ -95,8 +105,8 @@ public:
 class Clist
 {
     node *pointer; //pointing at the next node of current last node
-    unsigned n_count;
-    unsigned n_max;
+    int n_count;
+    int n_max;
 public:
     node *first;
     node *last;
@@ -137,6 +147,7 @@ public:
     int readY(Complex data_ary[], const double &bias = 0) const;
     int readY(std::vector<double> &data_ary) const;
     int readXY(std::pair<double, double> data_ary[], size_t n) const;
+    int readXYAfter(std::vector<std::pair<int64_t, Cpos>> &data_ary, const int64_t &tm) const;
     int readSpeed(std::vector<std::pair<int64_t, Cpos>> &data_ary) const;
     int readSpeedAfter(std::vector<double> &data_ary, const int64_t &tm) const;
     int push(const int64_t &time, const double& posx, const double& posy);

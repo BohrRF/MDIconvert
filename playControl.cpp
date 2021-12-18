@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <conio.h>
+#include <sstream>
 
 using std::cout;
 using std::endl;
@@ -74,7 +75,7 @@ void control::printMusic() const
             }
             for(const auto &note : tick.notes)
             {
-                stringstream ss;
+                stringstream ss(CM[note.channel]);
                 string str;
                 cout << "\t\t"
                      << "c " << note.channel << ' '
@@ -82,6 +83,7 @@ void control::printMusic() const
                      << "t " << note.tickSpan << ' '
                      << "v " << note.velocity << ' ';
 
+                ss.clear(); str.clear();
                 if(CM[note.channel] == -1) str = "default";
                 else {ss << CM[note.channel]; ss >> str;}
                 cout << "CC0 " << str << ' ';
@@ -162,8 +164,7 @@ void control::pause(const int64_t &curTimeStamp)
 {
     pauseTimeStamp = curTimeStamp;
     midi.stopMusic();
-    onPlayList.clear();
-    playState = 3;
+    playState = 1;
 }
 
 //void control::applyProgramChange() const
@@ -191,12 +192,12 @@ void control::getOnPlayList(unsigned char ary[]) const
 
 void control::printParameter() const
 {
-    printf("\nBeat# %5d / %-5lld err:%+4.0fms /%4.0fms    BPM: %3.1f= %4.1f%+5.1f    offset: %+3.0fms",
-           curBeatPos, music.beatSet.size() + 1, 1000 * dif , 60*1000 * gearFactor / handBpm, curBpm, handBpm, speedBias, timeOffset);
+    printf("\nBeat# %5d / %-5d err:%+4.0lfms /%4.0lfms    BPM: %3.1lf= %4.1lf%+5.1lf   spanF:%1.2f  veloF:%1.2f  offset: %+3.0lfms playstate: %d",
+        curBeatPos, music.beatSet.size() + 1, 1000 * dif, (float)(60 * 1000 * (double)gearFactor / handBpm), curBpm, handBpm, speedBias, curSpanFactor, curVelocityFactor, timeOffset, playState);
 }
 
-const double STDRANGE = 300.0;
-const double STDACCEL = 20;
+const double STDRANGE = 0.3;
+const double STDACCEL = 120;
 
 void control::onBeat(const int64_t& TimeStamp, const double& hand_amp, const double& hand_accel ,const Fourier& fft)
 {
@@ -436,19 +437,19 @@ int control::refresh(const int64_t& TimeStamp, const Fourier& fft)
 
 
 
-    std::list<onPlayNote>::iterator it = onPlayList.begin();
-    while (it != onPlayList.end())
+    onPlay_ptr = onPlayList.begin();
+    while (onPlay_ptr != onPlayList.end())
     {
-        if (it->endTimeStamp <= TimeStamp)
+        if (onPlay_ptr->endTimeStamp <= TimeStamp)
         {
             //stop music
-            midi.noteOff(it->onNote.number, it->onNote.channel);
-            it = onPlayList.erase(it);
+            midi.noteOff(onPlay_ptr->onNote.number, onPlay_ptr->onNote.channel);
+            onPlay_ptr = onPlayList.erase(onPlay_ptr);
 
             //isListChange = true;
         }
         else
-            it++;
+            onPlay_ptr++;
     }
 
     /*
@@ -547,14 +548,15 @@ int control::readMIDI(std::string FILENAME)
     {
         FILENAME = "./" + FILENAME;
     }
-    else if(FILENAME.substr(FILENAME.size()-4, 4) != ".mid")
+    if(FILENAME.size() < 5 || FILENAME.substr(FILENAME.size()-4, 4) != ".mid")
     {
         FILENAME += ".mid";
     }
     // MIDIファイルを開く
-    if((fp = fopen(FILENAME.c_str(), "rb")) == NULL){   // バイナリ読み取りモードでファイルを開く
-        perror("Error: Cannot open the file.");   // 失敗したらエラーを吐く
-        return 1;
+    fopen_s(&fp, FILENAME.c_str(), "rb");
+    if(fp == NULL){   // バイナリ読み取りモードでファイルを開く
+        cerr << "Error: Cannot open the file [" << FILENAME << "] ." << endl;   // 失敗したらエラーを吐く
+        exit(1);
     }
 
     // ヘッダチャンク取得
@@ -666,7 +668,7 @@ int control::readMIDI(std::string FILENAME)
 //            cout << curRhythm << ' ' << TPQN << ' ' << (int)(4.0 / curRhythm * TPQN)<< endl;
             while(gap >= (int)(4.0 / curRhythm * music.TPQN)) // 60/480.0 > 0 , 60/480=0, in this case have to =0 make (i) don't loop
             {
-                //printf("beat# %lld\n", beat_it - music.beatSet.begin() + 1);
+                //cout << "beat# " << beat_it - music.beatSet.begin() + 1 << endl;
                 //if(beat_it - music.beatSet.begin() + 1 == 16) getchar();
                 if(++beat_it == music.beatSet.end())
                 {
@@ -680,7 +682,7 @@ int control::readMIDI(std::string FILENAME)
             }
             curOffset = gap;
 
-            //printf("%7d:: ", curOffset);   // デルタタイム出力
+            //printf("%7d:: ", delta);   // デルタタイム出力
 
 
 //          if(curOffset > 10000)
@@ -723,7 +725,7 @@ int control::readMIDI(std::string FILENAME)
                 {
                     bool flag = false;
                     int n_count = 0;
-                    for(auto itr = beat_it; itr != music.beatSet.begin() - 1; itr--)
+                    for(auto itr = beat_it; ; itr--)
                     {
                         for(auto it = itr->tickSet.rbegin(); it != itr->tickSet.rend(); it++)
                         {
@@ -741,13 +743,13 @@ int control::readMIDI(std::string FILENAME)
                             }
                             if(flag) break;
                         }
-                        if(flag) break;
+                        if(flag || itr == music.beatSet.begin()) break;
                     }
                     if(flag == false)
                     {
                         std::cerr << '\n' << "note number: " << note << " note count: "<< note_count[note] << endl;
                         std::cerr << "Can't find note to turn off." << endl;
-                        getch();
+                        _getch();
                     }
                 }
             }
@@ -1375,7 +1377,7 @@ int control::readMIDI(std::string FILENAME)
                         break;
                     case 0x07:   // エンド・オブ・エクスクルーシブでもあるけども...
                                  // F7ステータスの場合のエクスクルーシブ・メッセージ
-                        ////printf("@End of Exclusive");
+                        //printf("@End of Exclusive");
                         //printf("F7 Exclusive Message : ");
                         j++;
 
@@ -1718,13 +1720,16 @@ int control::readMIDI(std::string FILENAME)
         }
     }
 
+    beat_ptr = music.beatSet.begin();
+    node_ptr = beat_ptr->tickSet.begin();
+
     // track_chunks,track_chunks[i].dataはcalloc()で領域確保しているので解放し忘れないように！
     for(i = 0; i < tracks; i++)
     {
         free(track_chunks[i].data);
     }
     free(track_chunks);
-    getch();
+    _getch();
     return 0;
 }
 

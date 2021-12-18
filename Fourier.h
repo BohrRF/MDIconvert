@@ -45,10 +45,11 @@ public:
     const Cdata& history(const int& his = 0);
     std::unique_ptr<double[]> getSpec() const;
     double getSpeedVariance(const int64_t& tm) const;
-    double calCurAccel(const int64_t &startTimeStamp, const Clist &list) const;
-    double calCurAccel(const int64_t& startTimeStamp) const;
+    double calCurAccel(const int64_t &startTimeStamp, const Clist &list, const Cpos &speedBias = 0) const;
+    double calCurAccel(const int64_t& startTimeStamp, const double &speedBias = 0) const;
     bool freqAvalible();
     double calHightRatio() const;
+    Cpos calFingerAmp(const int64_t& startTimeStamp, const Clist& list) const;
 };
 
 #endif // FOURIER_H_INCLUDED

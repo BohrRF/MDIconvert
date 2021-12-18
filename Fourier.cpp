@@ -106,7 +106,7 @@ double Fourier::getAverage() const
 
 void Fourier::outSpec() const
 {
-    for(unsigned i = 0; i < data_list.n_max; i++)
+    for(int i = 0; i < data_list.n_max; i++)
         std::cout << i+1 << '\t' << x[i] << std::endl;
 }
 
@@ -117,7 +117,7 @@ int Fourier::getListLength() const
 
 void Fourier::find_max_freq(std::vector<std::pair<double, double>> &spec_with_freq) const
 {
-
+    
     int64_t span = data_list.last->data.timestamp - data_list.first->data.timestamp;
     double sample_freq = ((double)data_list.n_count - 1.0) / ((double)span / 1000000.0);
     /*
@@ -136,7 +136,7 @@ void Fourier::find_max_freq(std::vector<std::pair<double, double>> &spec_with_fr
 std::unique_ptr<double[]> Fourier::getSpec() const
 {
     auto res = std::make_unique<double[]>(data_list.n_max);
-    for(unsigned i = 0; i < data_list.n_max; i++)
+    for(int i = 0; i < data_list.n_max; i++)
         res[i] = x[i].norm();
     return res;
 }
@@ -173,7 +173,7 @@ double Fourier::getSpeedVariance(const int64_t& tm) const
 }
 
 
-double Fourier::calCurAccel(const int64_t &startTimeStamp, const Clist &list) const
+double Fourier::calCurAccel(const int64_t &startTimeStamp, const Clist &list, const Cpos& speedBias) const
 {
     std::vector<std::pair<int64_t, Cpos>> speed_ary;
     list.readSpeed(speed_ary);
@@ -189,23 +189,24 @@ double Fourier::calCurAccel(const int64_t &startTimeStamp, const Clist &list) co
     curTime = endTime = speed_ary.front().first;
 
     for (auto it = speed_ary.begin() + 1; it->first > startTimeStamp && it != speed_ary.end() - 1; it++)
-    {
+    {  
         if (it->second.norm() > max_temp.norm())
         {
             endTime = it->first;
             max_temp = it->second;
         }
     }
-    double speed = (max_temp - low_temp).norm();
+    //std::cout << max_temp.norm() << " " << low_temp.norm() << " " << speedBias << std::endl;
+    double speed = (max_temp-speedBias).norm();
     return 1e6 * speed / (curTime - endTime);
 
 }
 
-double Fourier::calCurAccel(const int64_t& startTimeStamp) const
+double Fourier::calCurAccel(const int64_t& startTimeStamp, const double& speedBias) const
 {
     std::vector<std::pair<int64_t, Cpos>> speed_ary;
     data_list.readSpeed(speed_ary);
-    if (speed_ary.empty())
+    if (speed_ary.size() < 2)
         return 0;
 
 
@@ -216,7 +217,7 @@ double Fourier::calCurAccel(const int64_t& startTimeStamp) const
     int64_t endTime;
     curTime = endTime = speed_ary.front().first;
 
-    for (auto it = speed_ary.begin() + 1; it->first > startTimeStamp && it != speed_ary.end() - 1; it++)
+    for (auto it = speed_ary.begin() + 1; it != speed_ary.end() && it->first > startTimeStamp; it++)
     {
         if (it->second.norm() > max_temp.norm())
         {
@@ -224,7 +225,7 @@ double Fourier::calCurAccel(const int64_t& startTimeStamp) const
             max_temp = it->second;
         }
     }
-    double speed = (max_temp.norm() - low_temp.norm());
+    double speed = (max_temp.norm() - low_temp.norm()) - speedBias;
     return 1e6 * speed / (curTime - endTime);
 
 }
@@ -251,4 +252,25 @@ double Fourier::calHightRatio() const
         if (hight > max) max = hight;
     }
     return (hight_list.front() - min) / (max - min);
+}
+
+Cpos Fourier::calFingerAmp(const int64_t& startTimeStamp, const Clist &list) const
+{
+    std::vector<std::pair<int64_t, Cpos>> speed_ary;
+    list.readXYAfter(speed_ary, startTimeStamp);
+    if (speed_ary.size() < 2)
+        return 0;
+
+    Cpos low_temp = (speed_ary.begin() + 1)->second;
+    Cpos max_temp = 0;
+
+    for (auto it = speed_ary.begin() + 1; it != speed_ary.end(); it++)
+    {
+        if ((it->second - low_temp).norm() > (max_temp - low_temp).norm())
+        {
+            max_temp = it->second;
+        }
+    }
+    return (max_temp - low_temp) / 1000;
+
 }
