@@ -62,7 +62,6 @@ int main()
                 }
 
                 con.getOnPlayList(ay);
-                if((by[128] = (unsigned char)con.beatRecieved) == 1) con.beatRecieved = false;
                 if(con.curBeatPos != beat_cnt_temp)
                 {
                     c = '_';//196 '-'223
@@ -107,10 +106,9 @@ int main()
                             SetConsoleTextAttribute(hOut, 16 - by[i]);
                             cout << '\333';
                         }
-
                     }
                 }
-                if(by[128])
+                if(con.beatRecieved && duration_cast<microseconds>(t.time_since_epoch()).count() >= con.equvBeatTimeStamp)
                 {
                     SetConsoleTextAttribute(hOut, 11);
                     cout << "___";

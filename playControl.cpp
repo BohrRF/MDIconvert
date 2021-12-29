@@ -203,6 +203,7 @@ void control::onBeat(const int64_t& TimeStamp, const double& hand_amp, const dou
     if (hand_amp < LOW_HAND_AMP) return;
 
     beatRecieved = true;
+    equvBeatTimeStamp = TimeStamp + timeOffset * 1000;
 
     bpmList.push(TimeStamp);
     handBpm = bpmList.calAverage(beat_ptr->timeSigniture_num) * gearFactor;
@@ -244,7 +245,7 @@ void control::onBeat(const int64_t& TimeStamp, const double& hand_amp, const dou
 
         if(!speedFix)
         {
-            if (abs(dif) <= 0.3 * 60 * gearFactor / handBpm)
+            if (abs(dif) <= 0.45 * 60 * gearFactor / handBpm)
             {
     //            double Tcur = gearFactor * 60 / curBpm;
     //            double Test = gearFactor * 60 / handBpm;
@@ -253,8 +254,8 @@ void control::onBeat(const int64_t& TimeStamp, const double& hand_amp, const dou
     //            nextBeatTimeStamp = TimeStamp + (nextBeatTimeStamp - TimeStamp) * (curBpm / (curBpm + speedBias));
     //            curBpm = curBpm + speedBias;
 
-                    speedBias = -handBpm * handBpm * dif / (60 * gearFactor);
-
+                    speedBias = -handBpm * handBpm * dif / (0.001*timeOffset*handBpm + 60 * gearFactor);
+                    //speedBias = -handBpm * handBpm * dif / ( 60 * gearFactor);
                     curNodeTimeStamp = TimeStamp + (curNodeTimeStamp - TimeStamp) * (curBpm / (handBpm + speedBias));
                     nextBeatTimeStamp = TimeStamp + (nextBeatTimeStamp - TimeStamp) * (curBpm / (handBpm + speedBias));
 
@@ -1113,7 +1114,7 @@ int control::readMIDI(std::string FILENAME)
                     }
                     //printf(")=%d", (unsigned char)track_chunks[i].data[j]);
 
-
+#ifdef PITCH_BENT
                     auto it = beat_it->tickSet.begin();
                     special_temp.clear();
                     special_temp.push_back(0xb0 + (status & 0x0f));
@@ -1144,6 +1145,7 @@ int control::readMIDI(std::string FILENAME)
                         specials_temp.tickOffset = curOffset;
                         it = beat_it->tickSet.insert(it, specials_temp);
                     }
+#endif // PITCH_BENT
                 }
                 else if(120 <= c && c <= 127)// モード・メッセージ
                 {
@@ -1265,7 +1267,7 @@ int control::readMIDI(std::string FILENAME)
                 //printf(" (LSB:%d", (unsigned char)track_chunks[i].data[j]);
                 j++;
                 //printf(", MSB:%d)", (unsigned char)track_chunks[i].data[j]);
-
+#ifdef PITCH_BENT
                 special_temp.clear();
                 special_temp.push_back(0xe0 + (status & 0x0f));
                 special_temp.push_back((unsigned char)track_chunks[i].data[j - 1]);
@@ -1296,7 +1298,7 @@ int control::readMIDI(std::string FILENAME)
                     specials_temp.tickOffset = curOffset;
                     it = beat_it->tickSet.insert(it, specials_temp);
                 }
-
+#endif // PITCH_BENT
             }
             else if((status & 0xf0) == 0xf0)// 【システム・メッセージ】
             {

@@ -50,11 +50,12 @@ public:
     bool musicLoop = true;
     bool speedFix = false;
     unsigned int gearFactor = 1;
-    double timeOffset = 0;
+    double timeOffset = 200;
 
     int curBeatPos = 1;
     unsigned char playState = 0;
     bool beatRecieved = false;
+    int64_t equvBeatTimeStamp = 0;
     double handBpm = 0;
     double curAccel = 1;
     double curBpm = 120;
